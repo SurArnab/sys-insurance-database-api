@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	<flow name="createCustomerFlow" doc:id="92ea7a79-4a0d-4c7d-9fc9-e60fe8bd4453" >
+		<logger level="INFO" doc:name="start Logger" doc:id="f77f1bd5-3a1a-487a-8b5b-bbbe28a52ca7" message='"Start of insurance database service"'/>
+		<logger level="INFO" doc:name="data Logger" doc:id="275dacb9-b9f6-4860-a79e-4d31d4b47612" message='"Data to insert " #[payload] '/>
+		<db:bulk-insert doc:name="Bulk insert" doc:id="4c69fc85-e9c5-4167-99e7-c6206968b9b9" config-ref="Database_Config">
+			<db:sql ><![CDATA[insert into customers (customerid, name, contactnumber, salary, age, smoking, drinking, illness) values (:customerid, :name, :contactnumber, :salary, :age, :smoking, :drinking, :illness)]]></db:sql>
+		</db:bulk-insert>
+		<ee:transform doc:name="map to target" doc:id="12732a18-d00b-4597-bf5e-fe9800e19ce5" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+{
+	"message" : "customers created"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="end Logger" doc:id="f344537b-c28c-409b-b547-79778f20b308" message='"End of insurance database service"'/>
+	</flow>
+	<flow name="getCustomersFlow" doc:id="8022f6d6-162c-49ee-8f27-5ba2e41e4da5" >
+		<logger level="INFO" doc:name="startLogger" doc:id="a2eb4531-ce9a-41ca-be70-a207048e2384" message='"Start of get customers service " #[attributes.uriParams.customerid]'/>
+		<set-variable value="#[attributes.uriParams.customerid]" doc:name="Set customerid" doc:id="c5ae8d92-d664-4aa8-af72-d9ee60cd6782" variableName="customerid" />
+		<db:select doc:name="Select Customers" doc:id="f60aaecc-40b8-4660-acff-ee7c5db497fe" config-ref="Database_Config">
+			<db:sql ><![CDATA[select * from customers where "customerid" = :customerid]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	"customerid" : vars.customerid
+}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="Choice" doc:id="0137fb58-0ef6-4865-a8f7-b73660982cda" >
+			<when expression="#[sizeOf(payload) &gt; 0]">
+				<ee:transform doc:name="map to target" doc:id="7ea0134e-68c0-487f-a50b-9993240c9bef">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="No Data Found" doc:id="c43fd0f8-7ce0-444f-8f35-2972ca298fc2" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message" : "Not able to fetch customer for " ++ vars.customerid
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="end Logger" doc:id="640624da-c608-41cb-9b89-48035c7623bd" message='"End of get customers service " #[vars.customerid]'/>
+	</flow>
+	<flow name="createPolicyFlow" doc:id="6c0a2ceb-c84c-4ff5-a549-06a2df7c76ce" >
+		<logger level="INFO" doc:name="startLogger" doc:id="201edb4f-b211-45fc-bafd-3fb0939fa242" message="Start of Policy Database Flow"/>
+		<logger level="INFO" doc:name="data Logger" doc:id="6f40d9cb-f835-4630-bd46-4809dc12c785" message='"Data to insert " #[payload] ' />
+		<db:bulk-insert doc:name="Bulk insert" doc:id="b5ec24ca-48d2-4db0-92cd-30723c965480" config-ref="Database_Config">
+			<db:sql ><![CDATA[insert into policy (policyno, customerid, premium, coverage, tenure) values (:policyno, :customerid, :premium, :coverage, :tenure)]]></db:sql>
+		</db:bulk-insert>
+		<ee:transform doc:name="map to target" doc:id="a17bd027-16be-4aa7-8bd8-c938c3102773" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message" : "Policies created"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="endLogger" doc:id="99cf25de-8ebf-40ab-afc4-2dcc9f1e6b7b" message="End of Policy Database Flow" />
+	</flow>
+</mule>
